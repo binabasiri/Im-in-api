@@ -1,31 +1,15 @@
 const knex = require('knex')(require('../knexfile').development);
 const express = require('express');
-const { restart } = require('nodemon');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const { authorize } = require('../middleWare/AuthMiddleWare');
 
-router.post('/trips', (req, res) => {
-  // console.log(req.body);
+router.post('/trips', authorize, (req, res) => {
   const { destination, start, end } = req.body;
-  // const { restaurants } = req.body;
   const photo_reference = req.body.cityPhoto.photo_reference;
   const { selectedRestaurants, selectedTouristAttractions } = req.body;
   const trips_id = uuidv4();
-  // console.log(req.body);
-  // selectedRestaurants.forEach((restaurant) => {
-  //   const name = restaurant.name;
-  //   const rating = restaurant.rating.rating;
-  //   const number_of_ratings = restaurant.rating.numberOfRatings;
-  //   const restaurant_id = uuidv4();
-  //   knex('restaurants')
-  //     .insert({ id: restaurant_id, number_of_ratings, rating, name, trips_id })
-  //     .then((data) => {
-  //       console.log('Post request:', data);
-  //       const newWarehouseURL = `/warehouses/${data[0]}`;
-  //       res.status(201).location(newWarehouseURL).send(newWarehouseURL);
-  //     });
-  // });
-  // console.log(selectedRestaurants);
+
   const restaurantsToInsert = selectedRestaurants.map((restaurant) => {
     return {
       restaurant_name: restaurant.name,
@@ -46,9 +30,15 @@ router.post('/trips', (req, res) => {
     };
   });
   knex('trips')
-    .insert({ id: trips_id, photo_reference, destination, start, end })
+    .insert({
+      id: trips_id,
+      photo_reference,
+      destination,
+      start,
+      end,
+      user_id: req.decoded.id,
+    })
     .then((data) => {
-      console.log('get here');
       if (req.body.selectedRestaurants.length) {
         return knex('restaurants').insert([...restaurantsToInsert]);
       } else {
@@ -56,29 +46,27 @@ router.post('/trips', (req, res) => {
       }
     })
     .then((data) => {
-      console.log('Post request:', data);
-      return knex('tourist_attractions').insert([
-        ...touristAttractionsToInsert,
-      ]);
+      if (req.body.selectedTouristAttractions.length) {
+        return knex('tourist_attractions').insert([
+          ...touristAttractionsToInsert,
+        ]);
+      } else {
+        return Promise.resolve('success');
+      }
     })
     .then((data) => {
       res.status(201).send();
     })
     .catch((err) => res.status(400).send(`Error adding trips: ${err}`));
-  // console.log(restaurantsToInsert);
-
-  //     .catch((err) => res.status(400).send(`Error creating Warehouse: ${err}`));
-  //   knex('tourist_attractions')
-  //     .insert({ destination, start, end })
-  //     .then((data) => {
-  //       console.log('Post request:', data);
-  //       const newWarehouseURL = `/warehouses/${data[0]}`;
-  //       res.status(201).location(newWarehouseURL).send(newWarehouseURL);
-  //     })
-  //     .catch((err) => res.status(400).send(`Error creating Warehouse: ${err}`));
 });
 
-router.get('/trips/', (req, res) => {
+router.get('/trips/', authorize, (req, res) => {
+  const restaurantMap = {};
+  const touristAttractionMap = {};
+  let tripIds = [];
+  let trips = [];
+  let payload;
+  [];
   knex('trips')
     .select(
       'id',
@@ -88,9 +76,58 @@ router.get('/trips/', (req, res) => {
       'end',
       'updated_at'
     )
+    .where({ user_id: req.decoded.id })
     .then((data) => {
-      res.json(data);
+      data.forEach((trip) => {
+        tripIds.push(trip.id);
+        trips.push(trip);
+      });
+      // res.json(trips);
+      return knex('restaurants').select().whereIn('trips_id', tripIds);
+    })
+    .then((data) => {
+      data.forEach((restaurant) => {
+        restaurantMap[restaurant.trips_id] = [
+          ...(restaurantMap[restaurant.trips_id] || []),
+          restaurant,
+        ];
+      });
+      return knex('tourist_attractions').select().whereIn('trips_id', tripIds);
+    })
+    .then((data) => {
+      data.forEach((touristAttraction) => {
+        touristAttractionMap[touristAttraction.trips_id] = [
+          ...(touristAttractionMap[touristAttraction.trips_id] || []),
+          touristAttraction,
+        ];
+        trips.forEach((trip) => {
+          trip.selectedRestaurants = restaurantMap[trip.id];
+          trip.selectedTouristAttractions = touristAttractionMap[trip.id];
+        });
+      });
+      res.json(trips);
     });
+});
+
+router.delete('/trips/:id', authorize, (req, res) => {
+  knex('restaurants')
+    .delete()
+    .where({ trips_id: req.params.id })
+    .then(() => {
+      return knex('tourist_attractions')
+        .delete()
+        .where({ trips_id: req.params.id });
+    })
+    .then(() => {
+      return knex('trips').delete().where({ id: req.params.id });
+    })
+    .then(() => {
+      res.status(204).send(`trip with id: ${req.params.id} has been deleted`);
+    })
+
+    .catch((err) =>
+      res.status(400).send(`Error deleting trip ${req.params.id} ${err}`)
+    );
 });
 
 module.exports = router;

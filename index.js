@@ -6,6 +6,8 @@ const register = require('./routes/register');
 const photo = require('./routes/photo');
 const signin = require('./routes/signin');
 const trips = require('./routes/trips');
+const profile = require('./routes/profile');
+const explore = require('./routes/explore');
 const app = express();
 
 require('dotenv').config();
@@ -25,6 +27,8 @@ app.use('/', register);
 app.use('/', photo);
 app.use('/', signin);
 app.use('/', trips);
+app.use('/', profile);
+app.use('/', explore);
 
 app.listen(PORT, () => {
   console.log(`Server listening on ${PORT}`);

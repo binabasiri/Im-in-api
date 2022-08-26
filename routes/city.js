@@ -2,7 +2,6 @@ const { default: axios } = require('axios');
 const express = require('express');
 const router = express.Router();
 const utils = require('../utils/utils');
-const fetch = require('node-fetch');
 
 require('dotenv').config();
 const { GOOGLE_API_KEY, WEATHER_API_KEY } = process.env;
@@ -69,11 +68,11 @@ router.get('/city/:id', async (req, res) => {
     let topRestaurantInfo = {};
 
     topRestaurantInfo.image = {
-      height: sortedAvailableRestaurantsInTheCityByRating[i].photos[0].height,
-      width: sortedAvailableRestaurantsInTheCityByRating[i].photos[0].width,
+      height: sortedAvailableRestaurantsInTheCityByRating[i]?.photos[0]?.height,
+      width: sortedAvailableRestaurantsInTheCityByRating[i].photos[0]?.width,
       photoReference:
         sortedAvailableRestaurantsInTheCityByRating[i].photos[0]
-          .photo_reference,
+          ?.photo_reference,
     };
     topRestaurantInfo.name =
       sortedAvailableRestaurantsInTheCityByRating[i].name;
@@ -83,7 +82,7 @@ router.get('/city/:id', async (req, res) => {
       rating: sortedAvailableRestaurantsInTheCityByRating[i].rating,
     };
     topRestaurantInfo.priceRange =
-      sortedAvailableRestaurantsInTheCityByRating[i].price_level;
+      sortedAvailableRestaurantsInTheCityByRating[i]?.price_level;
     topRestaurantInfo.id = i;
     restaurants.push(topRestaurantInfo);
   }
@@ -109,12 +108,12 @@ router.get('/city/:id', async (req, res) => {
 
     topTouristAttractionInfo.image = {
       height:
-        sortedAvailableTouristAttractionInTheCityByRating[i].photos[0].height,
+        sortedAvailableTouristAttractionInTheCityByRating[i]?.photos[0]?.height,
       width:
-        sortedAvailableTouristAttractionInTheCityByRating[i].photos[0].width,
+        sortedAvailableTouristAttractionInTheCityByRating[i].photos[0]?.width,
       photoReference:
         sortedAvailableTouristAttractionInTheCityByRating[i].photos[0]
-          .photo_reference,
+          ?.photo_reference,
     };
     topTouristAttractionInfo.name =
       sortedAvailableTouristAttractionInTheCityByRating[i].name;
